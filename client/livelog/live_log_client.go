@@ -7,15 +7,15 @@ import (
 )
 
 const (
-	configEndpoint = "/api/v1/system/logs/config"
-	dataEndpoint   = "/api/v1/system/logs/data"
+	configEndpoint = "api/v1/system/logs/config"
+	dataEndpoint   = "api/v1/system/logs/data"
 	NodeIdHeader   = "X-JFrog-Node-Id"
 )
 
 // Defines a LiveLog interface, configured for
 type Client interface {
 	// Queries and returns the available nodes from the remote service.
-	GetServiceNodes(ctx context.Context) ([]string, error)
+	GetServiceNodes(ctx context.Context) (*ServiceNodes, error)
 
 	// Sets the node id to use when querying the remote service for log data.
 	SetNodeId(nodeId string)
@@ -25,6 +25,9 @@ type Client interface {
 
 	// Sets the log file name to use when querying the remote service for log data.
 	SetLogFileName(logFileName string)
+
+	// Sets the refresh rate interval between each log request.
+	SetLogsRefreshRate(logsRefreshRate time.Duration)
 
 	// Returns an io.Reader, which can be used to read a single log data snapshot from the remote service.
 	// The configured log file name is used, defaulting to console.log.
@@ -36,7 +39,7 @@ type Client interface {
 	// The configured log file name is used, defaulting to console.log.
 	// Any errors are transmitted on the returned reader.
 	// Cancellation of the passed context.Context will terminate the underlying goroutine.
-	TailLog(ctx context.Context, pollingInterval time.Duration) io.Reader
+	TailLog(ctx context.Context) io.Reader
 }
 
 type Config struct {
@@ -49,4 +52,19 @@ type Data struct {
 	Timestamp       int64  `json:"last_update_label,omitempty"`
 	Content         string `json:"log_content,omitempty"`
 	PageMarker      int64  `json:"file_size,omitempty"`
+}
+
+type ServiceNodes struct {
+	Nodes []struct {
+		URL            string `json:"url"`
+		Version        string `json:"version"`
+		Status         string `json:"status"`
+		ServiceName    string `json:"service_name"`
+		ServiceID      string `json:"service_id"`
+		NodeID         string `json:"node_id"`
+		LastHeartbeat  int64  `json:"last_heartbeat"`
+		HeartbeatStale bool   `json:"heartbeat_stale"`
+		StartTime      int64  `json:"start_time"`
+		StatusDetails  string `json:"status_details"`
+	} `json:"nodes"`
 }

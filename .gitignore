@@ -6,6 +6,7 @@
 # Test files
 tmp
 out
+main
 
 # Template executable
 jfrog-cli-plugin-template
