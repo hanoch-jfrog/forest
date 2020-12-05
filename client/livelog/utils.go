@@ -6,6 +6,7 @@ import (
 	"github.com/jfrog/jfrog-cli-core/plugins/components"
 	"github.com/jfrog/jfrog-cli-core/utils/config"
 	clientutils "github.com/jfrog/jfrog-client-go/utils"
+	"io"
 )
 
 // Returns the Artifactory Details of the provided server-id, or the default one.
@@ -26,18 +27,42 @@ func getRtDetails(c *components.Context) (*config.ArtifactoryDetails, error) {
 	return details, nil
 }
 
-type errReadCloser struct {
+type errReader struct {
 	err error
 }
 
-func newErrReadCloser(err error) *errReadCloser {
-	return &errReadCloser{err: err}
+func newErrReader(err error) *errReader {
+	return &errReader{err: err}
 }
 
-func (er *errReadCloser) Read(_ []byte) (n int, err error) {
+func (er *errReader) Read(_ []byte) (n int, err error) {
 	return 0, er.err
 }
 
-func (er *errReadCloser) Close() error {
-	return nil
+type blockingReader struct {
+	readerChan <-chan io.Reader
+	errChan    <-chan error
+}
+
+func newBlockingReader(readerChan <-chan io.Reader, errChan <-chan error) *blockingReader {
+	return &blockingReader{
+		readerChan: readerChan,
+		errChan:    errChan,
+	}
+}
+
+func (br *blockingReader) Read(p []byte) (int, error) {
+	n := 0
+	for {
+		select {
+		case r := <-br.readerChan:
+			currN, currErr := r.Read(p)
+			n += currN
+			if currErr != nil && currErr != io.EOF {
+				return n, currErr
+			}
+		case err := <-br.errChan:
+			return n, err
+		}
+	}
 }

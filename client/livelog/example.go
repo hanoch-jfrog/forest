@@ -5,51 +5,50 @@ import (
 	"fmt"
 	"github.com/jfrog/jfrog-cli-core/artifactory/utils"
 	"github.com/jfrog/jfrog-cli-core/plugins/components"
+	"github.com/jfrog/jfrog-client-go/utils/log"
 	"io"
 	"os"
 	"time"
 )
 
 // demonstrates how to call this service from the command scope
-func commandExample(c *components.Context) {
+func CommandExample(c *components.Context) error {
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	defer cancelCtx()
 
 	// ask which remote service to use: (e.g. artifactory / distribution / etc.)
-	fmt.Println("Which service? [artifactory]")
+	log.Output("Which service? [artifactory]")
 	rtDetails, err := getRtDetails(c)
 	if err != nil {
-		panic("Aghhhh")
+		return fmt.Errorf("failed getting artifactory details")
 	}
 	rtServiceManager, err := utils.CreateServiceManager(rtDetails, false)
-	liveLogService := NewArtifactoryService(rtServiceManager)
+	liveLogService := NewArtifactoryClient(rtServiceManager)
 
 	// get nodes for parameters
 	nodes, err := liveLogService.GetServiceNodes(ctx)
 	if err != nil {
-		panic("Aghhhh")
+		return fmt.Errorf("failed getting available nodes from artifactory: %v", err)
 	}
 	if len(nodes) == 0 {
-		fmt.Println("No available nodes for the remote service")
-		return
+		return fmt.Errorf("no available nodes for the remote service")
 	}
 
 	// ask which node to use:
-	fmt.Println(fmt.Sprintf("Which node? %v", nodes))
+	log.Output(fmt.Sprintf("Which node? %v", nodes))
 	liveLogService.SetLogFileName(nodes[0])
 
 	// get config for parameters
 	conf, err := liveLogService.GetConfig(ctx)
 	if err != nil {
-		panic("Aghhhh")
+		return fmt.Errorf("failed getting livelog configuration from artifactory: %v", err)
 	}
 	if len(conf.LogFileNames) == 0 {
-		fmt.Println("No available log files for the remote service node")
-		return
+		return fmt.Errorf("no available log files for the remote service node")
 	}
 
 	// ask which log file to use:
-	fmt.Println(fmt.Sprintf("Which log file? %v", conf.LogFileNames))
+	log.Output(fmt.Sprintf("Which log file? %v", conf.LogFileNames))
 	liveLogService.SetLogFileName(conf.LogFileNames[0])
 
 	// cat
@@ -59,7 +58,7 @@ func commandExample(c *components.Context) {
 	catReader := liveLogService.CatLog(timeoutCtx1)
 	_, err = io.Copy(os.Stdout, catReader)
 	if err != nil {
-		panic("Aghhhh")
+		return fmt.Errorf("failed reading logs from artifactory: %v", err)
 	}
 
 	// tail
@@ -69,6 +68,7 @@ func commandExample(c *components.Context) {
 	tailReader := liveLogService.CatLog(timeoutCtx2)
 	_, err = io.Copy(os.Stdout, tailReader)
 	if err != nil {
-		panic("Aghhhh")
+		return fmt.Errorf("failed reading logs from artifactory: %v", err)
 	}
+	return nil
 }

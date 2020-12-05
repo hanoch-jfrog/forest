@@ -13,7 +13,7 @@ const (
 )
 
 // Defines a LiveLog interface, configured for
-type Service interface {
+type Client interface {
 	// Queries and returns the available nodes from the remote service.
 	GetServiceNodes(ctx context.Context) ([]string, error)
 
@@ -31,7 +31,7 @@ type Service interface {
 	// Any errors are transmitted on the returned reader.
 	CatLog(ctx context.Context) io.Reader
 
-	// Returns an io.Reader, which can be used to read consecutive log data snapshots from the remote service,
+	// Returns an io.Reader, which can be used to read continuous log data snapshots from the remote service,
 	// on an interval set by the passed pollingInterval.
 	// The configured log file name is used, defaulting to console.log.
 	// Any errors are transmitted on the returned reader.
