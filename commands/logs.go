@@ -72,7 +72,6 @@ func SetupCloseHandler(cancelCtx context.CancelFunc) {
 func logsCmd(c *components.Context) error {
 	if len(c.Arguments) != 3 && len(c.Arguments) != 0 {
 		return fmt.Errorf("wrong number of arguments. Expected: 3 or 0, " + "Received: " + strconv.Itoa(len(c.Arguments)))
-
 	}
 
 	mainCtx, mainCtxCancel := context.WithCancel(context.Background())
@@ -157,7 +156,6 @@ func validateArgument(argumentName string, wantedVal string, allValues func() ([
 		return fmt.Errorf("no %v found", argumentName)
 	}
 	if !livelog.InSlice(values, wantedVal) {
-
 		return fmt.Errorf("%v not found [%v], consider using one of the following %v [%v]", argumentName, wantedVal, argumentName, livelog.SliceToCsv(values))
 	}
 	return nil
