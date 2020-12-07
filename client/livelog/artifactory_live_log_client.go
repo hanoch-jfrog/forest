@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/jfrog/jfrog-cli-core/artifactory/utils"
 	"github.com/jfrog/jfrog-client-go/artifactory"
 	"github.com/jfrog/jfrog-client-go/artifactory/httpclient"
 	"github.com/jfrog/jfrog-client-go/utils/io/httputils"
@@ -13,22 +14,34 @@ import (
 )
 
 const (
-	artifactoryNodesEndpoint = "/api/system/nodes"
+	artifactoryNodesEndpoint     = "api/system/nodes"
+	artifactoryLogRequestTimeout = 1 * time.Minute
+	DefaultLogsRefreshRate       = 1 * time.Second
 )
 
 type artifactoryClient struct {
-	rt          artifactory.ArtifactoryServicesManager
-	nodeId      string
-	logFileName string
+	rt              artifactory.ArtifactoryServicesManager
+	nodeId          string
+	logFileName     string
+	logsRefreshRate time.Duration
 }
 
-func NewArtifactoryClient(rtServiceManager artifactory.ArtifactoryServicesManager) *artifactoryClient {
+func NewArtifactoryClient(serviceManager artifactory.ArtifactoryServicesManager) *artifactoryClient {
 	return &artifactoryClient{
-		rt: rtServiceManager,
+		rt:              serviceManager,
+		logsRefreshRate: DefaultLogsRefreshRate,
 	}
 }
 
-func (s *artifactoryClient) GetServiceNodes(_ context.Context) ([]string, error) {
+func GetServiceManager(selectedCliId string) (artifactory.ArtifactoryServicesManager, error) {
+	rtDetails, err := getRtDetails(selectedCliId)
+	if err != nil {
+		return nil, err
+	}
+	return utils.CreateServiceManager(rtDetails, false)
+}
+
+func (s *artifactoryClient) GetServiceNodes(_ context.Context) (*ServiceNodes, error) {
 	client := s.rt.Client()
 	httpClientDetails := (*client.ArtDetails).CreateHttpClientDetails()
 
@@ -37,9 +50,9 @@ func (s *artifactoryClient) GetServiceNodes(_ context.Context) ([]string, error)
 		return nil, err
 	}
 
-	logConfig := Config{}
-	err = json.Unmarshal(resBody, &logConfig)
-	return []string{string(resBody)}, err
+	serviceNodes := ServiceNodes{}
+	err = json.Unmarshal(resBody, &serviceNodes)
+	return &serviceNodes, err
 }
 
 func (s *artifactoryClient) GetConfig(_ context.Context) (Config, error) {
@@ -69,15 +82,21 @@ func (s *artifactoryClient) SetLogFileName(logFileName string) {
 	s.logFileName = logFileName
 }
 
+func (s *artifactoryClient) SetLogsRefreshRate(logsRefreshRate time.Duration) {
+	s.logsRefreshRate = logsRefreshRate
+}
+
 func (s *artifactoryClient) CatLog(ctx context.Context) io.Reader {
-	logReader, _, err := s.doCatLog(ctx, 0)
+	timeoutCtx, cancel := context.WithTimeout(ctx, artifactoryLogRequestTimeout)
+	defer cancel()
+	logReader, _, err := s.doCatLog(timeoutCtx, 0)
 	if err != nil {
 		return newErrReader(err)
 	}
 	return logReader
 }
 
-func (s *artifactoryClient) TailLog(ctx context.Context, pollingInterval time.Duration) io.Reader {
+func (s *artifactoryClient) TailLog(ctx context.Context) io.Reader {
 	pageMarker := int64(0)
 	readerChan := make(chan io.Reader)
 	errChan := make(chan error)
@@ -90,22 +109,32 @@ func (s *artifactoryClient) TailLog(ctx context.Context, pollingInterval time.Du
 				close(readerChan)
 				close(errChan)
 				return
-			case <-time.After(pollingInterval):
-				var logReader io.Reader
-				var err error
-
-				logReader, pageMarker, err = s.doCatLog(ctx, pageMarker)
-				if err != nil {
-					errChan <- err
-					close(readerChan)
-					close(errChan)
+			case <-time.After(s.logsRefreshRate):
+				done := s.catLogToChannel(ctx, pageMarker, errChan, readerChan)
+				if done {
 					return
 				}
-				readerChan <- logReader
 			}
 		}
 	}()
 	return newBlockingReader(readerChan, errChan)
+}
+
+func (s *artifactoryClient) catLogToChannel(ctx context.Context, pageMarker int64, errChan chan error, readerChan chan io.Reader) bool {
+	var logReader io.Reader
+	var err error
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, artifactoryLogRequestTimeout)
+	defer cancel()
+	logReader, pageMarker, err = s.doCatLog(timeoutCtx, pageMarker)
+	if err != nil {
+		errChan <- err
+		close(readerChan)
+		close(errChan)
+		return true
+	}
+	readerChan <- logReader
+	return false
 }
 
 func (s *artifactoryClient) doCatLog(_ context.Context, lastPageMarker int64) (logReader io.Reader, newPageMarker int64, err error) {

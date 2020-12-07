@@ -3,7 +3,6 @@ package livelog
 import (
 	"context"
 	"fmt"
-	"github.com/jfrog/jfrog-cli-core/artifactory/utils"
 	"github.com/jfrog/jfrog-cli-core/plugins/components"
 	"github.com/jfrog/jfrog-client-go/utils/log"
 	"io"
@@ -18,25 +17,21 @@ func CommandExample(c *components.Context) error {
 
 	// ask which remote service to use: (e.g. artifactory / distribution / etc.)
 	log.Output("Which service? [artifactory]")
-	rtDetails, err := getRtDetails(c)
-	if err != nil {
-		return fmt.Errorf("failed getting artifactory details")
-	}
-	rtServiceManager, err := utils.CreateServiceManager(rtDetails, false)
-	liveLogService := NewArtifactoryClient(rtServiceManager)
+	serviceManager, err := GetServiceManager("artifactory")
+	liveLogService := NewArtifactoryClient(serviceManager)
 
 	// get nodes for parameters
 	nodes, err := liveLogService.GetServiceNodes(ctx)
 	if err != nil {
 		return fmt.Errorf("failed getting available nodes from artifactory: %v", err)
 	}
-	if len(nodes) == 0 {
+	if len(nodes.Nodes) == 0 {
 		return fmt.Errorf("no available nodes for the remote service")
 	}
 
 	// ask which node to use:
 	log.Output(fmt.Sprintf("Which node? %v", nodes))
-	liveLogService.SetLogFileName(nodes[0])
+	liveLogService.SetLogFileName("console.log")
 
 	// get config for parameters
 	conf, err := liveLogService.GetConfig(ctx)

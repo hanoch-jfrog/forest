@@ -1,18 +1,45 @@
 package livelog
 
 import (
+	"bytes"
+	"encoding/csv"
 	"fmt"
 	"github.com/jfrog/jfrog-cli-core/artifactory/commands"
-	"github.com/jfrog/jfrog-cli-core/plugins/components"
 	"github.com/jfrog/jfrog-cli-core/utils/config"
 	clientutils "github.com/jfrog/jfrog-client-go/utils"
 	"io"
+	"strings"
+	"time"
 )
 
+func InSlice(values []string, wantedVal string) bool {
+	for _, val := range values {
+		if val == wantedVal {
+			return true
+		}
+	}
+	return false
+}
+
+func SliceToCsv(values []string) string {
+	var buf bytes.Buffer
+	wr := csv.NewWriter(&buf)
+	err := wr.Write(values)
+	if err != nil {
+		return ""
+	}
+
+	wr.Flush()
+	return strings.TrimSuffix(buf.String(), "\n")
+}
+
+func MillisToDuration(timeInMillis int64) time.Duration {
+	return time.Duration(timeInMillis) * time.Millisecond
+}
+
 // Returns the Artifactory Details of the provided server-id, or the default one.
-func getRtDetails(c *components.Context) (*config.ArtifactoryDetails, error) {
-	serverId := c.GetStringFlagValue("server-id")
-	details, err := commands.GetConfig(serverId, false)
+func getRtDetails(selectedCliId string) (*config.ArtifactoryDetails, error) {
+	details, err := commands.GetConfig(selectedCliId, false)
 	if err != nil {
 		return nil, err
 	}
