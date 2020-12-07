@@ -3,8 +3,8 @@ package commands
 import (
 	"context"
 	"fmt"
+	"github.com/hanoch-jfrog/forest/client/livelog"
 	"github.com/jfrog/jfrog-cli-core/plugins/components"
-	"github.com/jfrog/jfrog-cli-plugin-template/client/livelog"
 	"io"
 	"io/ioutil"
 	"os"
@@ -33,8 +33,8 @@ func GetLogsCommand() components.Command {
 func getLogsArguments() []components.Argument {
 	return []components.Argument{
 		{Name: "server_id", Description: "JFrog CLI Artifactory server id"},
-		{Name: "node_id", Description: "Artifactory's node id"},
-		{Name: "log_name", Description: "Desired log name"},
+		{Name: "node_id", Description: "Selected Artifactory node id"},
+		{Name: "log_name", Description: "Selected Artifactory log name"},
 	}
 }
 

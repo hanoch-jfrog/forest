@@ -3,8 +3,8 @@ package commands
 import (
 	"context"
 	"fmt"
+	"github.com/hanoch-jfrog/forest/client/livelog"
 	"github.com/jfrog/jfrog-cli-core/utils/config"
-	"github.com/jfrog/jfrog-cli-plugin-template/client/livelog"
 	"github.com/manifoldco/promptui"
 	"time"
 )

@@ -7,6 +7,7 @@
 tmp
 out
 main
+forest
 
 # Template executable
 jfrog-cli-plugin-template

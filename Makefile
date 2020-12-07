@@ -12,7 +12,7 @@ help:				## Show this help.
 # BUILD:
 
 build:	clean			## Build Forest plugin
-	$(GOCMD) build main.go
+	$(GOCMD) build
 
 fmt-fix:			## Gofmt fix errors
 	gofmt -w -s .
@@ -21,7 +21,7 @@ vet:				## GoVet
 	$(GOCMD) vet $(TEST_TAGS) ./...
 
 clean:				## Clean from created bins
-	rm -f main jfrog-cli-plugin-template main
+	rm -f forest main jfrog-cli-plugin-template main
 
 run:			## Run the plugin
 	$(GOCMD) run main.go
