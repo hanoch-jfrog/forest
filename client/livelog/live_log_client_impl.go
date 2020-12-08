@@ -77,36 +77,34 @@ func (s *client) SetLogsRefreshRate(logsRefreshRate time.Duration) {
 
 func (s *client) CatLog(ctx context.Context, output io.Writer) error {
 	logReader, _, err := s.doCatLog(ctx, 0)
+	if err != nil {
+		return err
+	}
 	_, err = io.Copy(output, logReader)
 	return err
 }
 
 func (s *client) TailLog(ctx context.Context, output io.Writer) error {
 	pageMarker := int64(0)
+	curLogRefreshRate := time.Duration(0)
 
-	catLogFunc := func() error {
-		var logReader io.Reader
-		var internalErr error
-
-		logReader, pageMarker, internalErr = s.doCatLog(ctx, pageMarker)
-		if internalErr != nil {
-			return internalErr
-		}
-		_, internalErr = io.Copy(output, logReader)
-		if internalErr != nil {
-			return internalErr
-		}
-		return nil
-	}
-	if err := catLogFunc(); err != nil {
-		return err
-	}
-	for {
+  for {
 		select {
 		case <-ctx.Done():
 			return nil
-		case <-time.After(s.logsRefreshRate):
-			if err := catLogFunc(); err != nil {
+		case <-time.After(curLogRefreshRate):
+      if curLogRefreshRate == 0 {
+				curLogRefreshRate = s.logsRefreshRate
+			}
+      
+			var logReader io.Reader
+			var err error
+			logReader, pageMarker, err = s.doCatLog(ctx, pageMarker)
+			if err != nil {
+				return err
+			}
+			_, err = io.Copy(output, logReader)
+			if err != nil {
 				return err
 			}
 		}
