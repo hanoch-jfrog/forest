@@ -14,15 +14,6 @@ type Data struct {
 
 type ServiceNodes struct {
 	Nodes []struct {
-		URL            string `json:"url"`
-		Version        string `json:"version"`
-		Status         string `json:"status"`
-		ServiceName    string `json:"service_name"`
-		ServiceID      string `json:"service_id"`
-		NodeID         string `json:"node_id"`
-		LastHeartbeat  int64  `json:"last_heartbeat"`
-		HeartbeatStale bool   `json:"heartbeat_stale"`
-		StartTime      int64  `json:"start_time"`
-		StatusDetails  string `json:"status_details"`
+		NodeID string `json:"node_id"`
 	} `json:"nodes"`
 }
