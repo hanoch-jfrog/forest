@@ -32,7 +32,7 @@ func NewClient(strategy strategy.Http) *client {
 	}
 }
 
-func (s *client) GetServiceNodes(ctx context.Context) (*model.ServiceNodes, error) {
+func (s *client) GetServiceNodeIds(ctx context.Context) ([]string, error) {
 	timeoutCtx, cancelTimeout := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer cancelTimeout()
 	endpoint := s.httpStrategy.NodesEndpoint()
@@ -42,8 +42,17 @@ func (s *client) GetServiceNodes(ctx context.Context) (*model.ServiceNodes, erro
 	}
 
 	serviceNodes := model.ServiceNodes{}
-	err = json.Unmarshal(resBody, &serviceNodes)
-	return &serviceNodes, err
+	if err = json.Unmarshal(resBody, &serviceNodes); err != nil {
+		return nil, err
+	}
+	if len(serviceNodes.Nodes) == 0 {
+		return nil, fmt.Errorf("no node ids found")
+	}
+	nodeIds := make([]string, len(serviceNodes.Nodes))
+	for idx, serviceNode := range serviceNodes.Nodes {
+		nodeIds[idx] = serviceNode.NodeId
+	}
+	return nodeIds, err
 }
 
 func (s *client) GetConfig(ctx context.Context) (*model.Config, error) {
@@ -60,7 +69,13 @@ func (s *client) GetConfig(ctx context.Context) (*model.Config, error) {
 
 	logConfig := model.Config{}
 	err = json.Unmarshal(resBody, &logConfig)
-	return &logConfig, err
+	if err != nil {
+		return nil, err
+	}
+	if len(logConfig.LogFileNames) == 0 {
+		return nil, fmt.Errorf("no log file names were found")
+	}
+	return &logConfig, nil
 }
 
 func (s *client) SetNodeId(nodeId string) {

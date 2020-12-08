@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/hanoch-jfrog/forest/client/livelog"
 	"github.com/hanoch-jfrog/forest/client/livelog/strategy"
+	"github.com/hanoch-jfrog/forest/util"
 	"github.com/jfrog/jfrog-cli-core/plugins/components"
 	"os"
 	"os/signal"
@@ -13,8 +14,6 @@ import (
 	"time"
 )
 
-var livelogClient livelog.Client
-
 func GetLogsCommand() components.Command {
 	return components.Command{
 		Name:        "logs",
@@ -22,10 +21,7 @@ func GetLogsCommand() components.Command {
 		Aliases:     []string{"l"},
 		Arguments:   getLogsArguments(),
 		Flags:       getLogsFlags(),
-		EnvVars:     getLogsEnvVar(),
-		Action: func(c *components.Context) error {
-			return logsCmd(c)
-		},
+		Action:      logsCmd,
 	}
 }
 
@@ -52,97 +48,78 @@ func getLogsFlags() []components.Flag {
 	}
 }
 
-func getLogsEnvVar() []components.EnvVar {
-	return []components.EnvVar{}
-}
-
-func SetupCloseHandler(cancelCtx context.CancelFunc) {
+func listenForTermination(cancelCtx context.CancelFunc) {
 	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGABRT)
 	go func() {
 		<-c
 		cancelCtx()
-		fmt.Println("\r- Ctrl+C pressed in Terminal")
+		fmt.Println("\r- Terminating")
 		os.Exit(0)
 	}()
 }
 
 func logsCmd(c *components.Context) error {
-	if len(c.Arguments) != 3 && len(c.Arguments) != 0 {
-		return fmt.Errorf("wrong number of arguments. Expected: 3 or 0, " + "Received: " + strconv.Itoa(len(c.Arguments)))
-	}
+	isStreaming := c.GetBoolFlagValue("f")
+	isInteractive := c.GetBoolFlagValue("i")
 
 	mainCtx, mainCtxCancel := context.WithCancel(context.Background())
 	defer mainCtxCancel()
-	SetupCloseHandler(mainCtxCancel)
+	listenForTermination(mainCtxCancel)
 
-	logTail := c.GetBoolFlagValue("f")
-	enableInteractiveMenu := c.GetBoolFlagValue("i")
-
-	var err error
-	if enableInteractiveMenu {
-		livelogClient, err = interactiveMenu(mainCtx)
-		if err != nil {
-			return err
-		}
-	} else {
+	if !isInteractive {
 		if len(c.Arguments) != 3 {
 			return fmt.Errorf("wrong number of arguments. Expected: 3, " + "Received: " + strconv.Itoa(len(c.Arguments)))
 		}
-
 		serverId := c.Arguments[0]
 		nodeId := c.Arguments[1]
-		logName := c.Arguments[2]
-
-		livelogClient, err = buildServiceFromArguments(mainCtx, serverId, nodeId, logName)
-		if err != nil {
-			return err
-		}
+		logFileName := c.Arguments[2]
+		return buildServiceFromArguments(mainCtx, serverId, nodeId, logFileName, isStreaming)
 	}
-	return printLogs(mainCtx, logTail)
+	return interactiveMenu(mainCtx, isStreaming)
 }
 
-func buildServiceFromArguments(ctx context.Context, cliServerId, nodeId, logName string) (livelog.Client, error) {
+func buildServiceFromArguments(ctx context.Context, cliServerId, nodeId, logName string, isStreaming bool) error {
 	err := validateArgument("server id", cliServerId,
 		func() ([]string, error) {
 			return fetchAllServerIds()
 		})
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	serviceManager, err := newArtifactoryServiceManager(cliServerId)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	artiStrategy := strategy.NewArtifactoryHttpStrategy(serviceManager)
-	livelogClient = livelog.NewClient(artiStrategy)
+	artifactoryHttpStrategy := strategy.NewArtifactoryHttpStrategy(serviceManager)
+	client := livelog.NewClient(artifactoryHttpStrategy)
 
 	err = validateArgument("node id", nodeId,
 		func() ([]string, error) {
-			return fetchAllNodeIds(ctx)
+			return client.GetServiceNodeIds(ctx)
 		})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	livelogClient.SetNodeId(nodeId)
+	client.SetNodeId(nodeId)
 
 	var logsRefreshRate time.Duration
 	err = validateArgument("log name", logName,
 		func() ([]string, error) {
-			srvConfig, fetchErr := fetchServerConfig(ctx)
+			srvConfig, fetchErr := client.GetConfig(ctx)
 			if fetchErr != nil {
 				return nil, fetchErr
 			}
-			logsRefreshRate = MillisToDuration(srvConfig.RefreshRateMillis)
+			logsRefreshRate = util.MillisToDuration(srvConfig.RefreshRateMillis)
 			return srvConfig.LogFileNames, nil
 		})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	livelogClient.SetLogFileName(logName)
-	livelogClient.SetLogsRefreshRate(logsRefreshRate)
-	return livelogClient, nil
+	client.SetLogFileName(logName)
+	client.SetLogsRefreshRate(logsRefreshRate)
+	return printLogs(ctx, client, isStreaming)
 }
 
 func validateArgument(argumentName string, wantedVal string, allValues func() ([]string, error)) error {
@@ -153,46 +130,40 @@ func validateArgument(argumentName string, wantedVal string, allValues func() ([
 	if len(values) == 0 {
 		return fmt.Errorf("no %v found", argumentName)
 	}
-	if !InSlice(values, wantedVal) {
-		return fmt.Errorf("%v not found [%v], consider using one of the following %v [%v]", argumentName, wantedVal, argumentName, SliceToCsv(values))
+	if !util.InSlice(values, wantedVal) {
+		return fmt.Errorf("%v not found [%v], consider using one of the following %v values [%v]", argumentName, wantedVal, argumentName, util.SliceToCsv(values))
 	}
 	return nil
 }
 
-func interactiveMenu(ctx context.Context) (livelog.Client, error) {
+func interactiveMenu(ctx context.Context, isStreaming bool) error {
 	selectedCliServerId, err := selectCliServerId()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	serviceManager, err := newArtifactoryServiceManager(selectedCliServerId)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	artiStrategy := strategy.NewArtifactoryHttpStrategy(serviceManager)
-	livelogClient = livelog.NewClient(artiStrategy)
-
-	nodeId, err := selectNodeId(ctx)
+	artifactoryStrategy := strategy.NewArtifactoryHttpStrategy(serviceManager)
+	client := livelog.NewClient(artifactoryStrategy)
+	nodeId, err := selectNodeId(ctx, client)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	livelogClient.SetNodeId(nodeId)
-
-	logName, logsRefreshRate, err := selectLogNameAndFetchRefreshRate(ctx)
+	client.SetNodeId(nodeId)
+	logName, logsRefreshRate, err := selectLogNameAndFetchRefreshRate(ctx, client)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	livelogClient.SetLogFileName(logName)
-	livelogClient.SetLogsRefreshRate(logsRefreshRate)
-
-	return livelogClient, nil
+	client.SetLogFileName(logName)
+	client.SetLogsRefreshRate(logsRefreshRate)
+	return printLogs(ctx, client, isStreaming)
 }
 
-func printLogs(ctx context.Context, tail bool) error {
-	var err error
-	if tail {
-		err = livelogClient.TailLog(ctx, os.Stdout)
-	} else {
-		err = livelogClient.CatLog(ctx, os.Stdout)
+func printLogs(ctx context.Context, client livelog.Client, isStreaming bool) error {
+	if isStreaming {
+		return client.TailLog(ctx, os.Stdout)
 	}
-	return err
+	return client.CatLog(ctx, os.Stdout)
 }

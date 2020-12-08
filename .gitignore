@@ -4,13 +4,10 @@
 *.iml
 
 # Test files
-tmp
-out
-main
-forest
+coverage
 
-# Template executable
-jfrog-cli-plugin-template
+# Executable
+forest
 
 # Vim
 *~
