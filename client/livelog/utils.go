@@ -3,10 +3,6 @@ package livelog
 import (
 	"bytes"
 	"encoding/csv"
-	"fmt"
-	"github.com/jfrog/jfrog-cli-core/artifactory/commands"
-	"github.com/jfrog/jfrog-cli-core/utils/config"
-	clientutils "github.com/jfrog/jfrog-client-go/utils"
 	"io"
 	"strings"
 	"time"
@@ -35,23 +31,6 @@ func SliceToCsv(values []string) string {
 
 func MillisToDuration(timeInMillis int64) time.Duration {
 	return time.Duration(timeInMillis) * time.Millisecond
-}
-
-// Returns the Artifactory Details of the provided server-id, or the default one.
-func getRtDetails(selectedCliId string) (*config.ArtifactoryDetails, error) {
-	details, err := commands.GetConfig(selectedCliId, false)
-	if err != nil {
-		return nil, err
-	}
-	if details.Url == "" {
-		return nil, fmt.Errorf("no server-id was found, or the server-id has no url")
-	}
-	details.Url = clientutils.AddTrailingSlashIfNeeded(details.Url)
-	err = config.CreateInitialRefreshableTokensIfNeeded(details)
-	if err != nil {
-		return nil, err
-	}
-	return details, nil
 }
 
 type errReader struct {

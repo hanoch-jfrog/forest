@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/hanoch-jfrog/forest/client/livelog"
+	"github.com/hanoch-jfrog/forest/client/livelog/model"
 	"github.com/jfrog/jfrog-cli-core/utils/config"
 	"github.com/manifoldco/promptui"
 	"time"
@@ -12,7 +13,7 @@ import (
 const requestTimeout = 15 * time.Second
 
 func selectLogNameAndFetchRefreshRate(ctx context.Context) (selectedLogName string, logsRefreshRate time.Duration, err error) {
-	var srvConfig livelog.Config
+	var srvConfig model.Config
 	srvConfig, err = fetchServerConfig(ctx)
 	if err != nil {
 		return
@@ -22,7 +23,7 @@ func selectLogNameAndFetchRefreshRate(ctx context.Context) (selectedLogName stri
 	return
 }
 
-func fetchServerConfig(ctx context.Context) (srvConfig livelog.Config, err error) {
+func fetchServerConfig(ctx context.Context) (srvConfig model.Config, err error) {
 	timeoutCtx, cancel := context.WithTimeout(ctx, requestTimeout)
 	defer cancel()
 	srvConfig, err = artifactoryServiceClient.GetConfig(timeoutCtx)

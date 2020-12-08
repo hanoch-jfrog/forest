@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/hanoch-jfrog/forest/client/livelog"
+	"github.com/hanoch-jfrog/forest/client/livelog/strategy"
 	"github.com/jfrog/jfrog-cli-core/plugins/components"
 	"io"
 	"io/ioutil"
@@ -117,7 +118,8 @@ func buildServiceFromArguments(ctx context.Context, cliServerId, nodeId, logName
 	if err != nil {
 		return nil, err
 	}
-	artifactoryServiceClient = livelog.NewArtifactoryClient(serviceManager)
+	artiStrategy := strategy.NewArtifactoryLiveLogStrategy(serviceManager)
+	artifactoryServiceClient = livelog.NewClient(artiStrategy)
 
 	err = validateArgument("node id", nodeId,
 		func() ([]string, error) {
@@ -170,7 +172,8 @@ func interactiveMenu(ctx context.Context) (livelog.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	artifactoryServiceClient = livelog.NewArtifactoryClient(serviceManager)
+	artiStrategy := strategy.NewArtifactoryLiveLogStrategy(serviceManager)
+	artifactoryServiceClient = livelog.NewClient(artiStrategy)
 
 	nodeId, err := selectNodeId(ctx)
 	if err != nil {
