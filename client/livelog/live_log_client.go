@@ -15,7 +15,7 @@ type Client interface {
 	SetNodeId(nodeId string)
 
 	// Queries and returns the livelog configuration from the remote service, based on the set node id.
-	GetConfig(ctx context.Context) (model.Config, error)
+	GetConfig(ctx context.Context) (*model.Config, error)
 
 	// Sets the log file name to use when querying the remote service for log data.
 	SetLogFileName(logFileName string)

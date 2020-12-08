@@ -10,7 +10,7 @@ import (
 )
 
 func selectLogNameAndFetchRefreshRate(ctx context.Context) (selectedLogName string, logsRefreshRate time.Duration, err error) {
-	var srvConfig model.Config
+	var srvConfig *model.Config
 	srvConfig, err = fetchServerConfig(ctx)
 	if err != nil {
 		return
@@ -20,7 +20,7 @@ func selectLogNameAndFetchRefreshRate(ctx context.Context) (selectedLogName stri
 	return
 }
 
-func fetchServerConfig(ctx context.Context) (srvConfig model.Config, err error) {
+func fetchServerConfig(ctx context.Context) (srvConfig *model.Config, err error) {
 	srvConfig, err = livelogClient.GetConfig(ctx)
 	if err != nil {
 		return

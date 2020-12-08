@@ -46,21 +46,21 @@ func (s *client) GetServiceNodes(ctx context.Context) (*model.ServiceNodes, erro
 	return &serviceNodes, err
 }
 
-func (s *client) GetConfig(ctx context.Context) (model.Config, error) {
+func (s *client) GetConfig(ctx context.Context) (*model.Config, error) {
 	if s.nodeId == "" {
-		return model.Config{}, fmt.Errorf("node id must be set")
+		return nil, fmt.Errorf("node id must be set")
 	}
 
 	timeoutCtx, cancelTimeout := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer cancelTimeout()
 	resBody, err := s.httpStrategy.SendGet(timeoutCtx, constants.ConfigEndpoint, s.nodeId)
 	if err != nil {
-		return model.Config{}, err
+		return nil, err
 	}
 
 	logConfig := model.Config{}
 	err = json.Unmarshal(resBody, &logConfig)
-	return logConfig, err
+	return &logConfig, err
 }
 
 func (s *client) SetNodeId(nodeId string) {
@@ -88,17 +88,17 @@ func (s *client) TailLog(ctx context.Context, output io.Writer) error {
 	pageMarker := int64(0)
 	curLogRefreshRate := time.Duration(0)
 
-  for {
+	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-time.After(curLogRefreshRate):
-      if curLogRefreshRate == 0 {
+			if curLogRefreshRate == 0 {
 				curLogRefreshRate = s.logsRefreshRate
 			}
-      
 			var logReader io.Reader
 			var err error
+
 			logReader, pageMarker, err = s.doCatLog(ctx, pageMarker)
 			if err != nil {
 				return err

@@ -6,14 +6,14 @@ type Config struct {
 }
 
 type Data struct {
-	LogFileModified int64  `json:"last_update_modified,omitempty"`
-	Timestamp       int64  `json:"last_update_label,omitempty"`
-	Content         string `json:"log_content,omitempty"`
-	PageMarker      int64  `json:"file_size,omitempty"`
+	Content    string `json:"log_content,omitempty"`
+	PageMarker int64  `json:"file_size,omitempty"`
 }
 
 type ServiceNodes struct {
-	Nodes []struct {
-		NodeID string `json:"node_id"`
-	} `json:"nodes"`
+	Nodes []ServiceNode `json:"nodes"`
+}
+
+type ServiceNode struct {
+	NodeID string `json:"node_id"`
 }
