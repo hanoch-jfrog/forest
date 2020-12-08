@@ -115,7 +115,7 @@ func buildServiceFromArguments(ctx context.Context, cliServerId, nodeId, logName
 	if err != nil {
 		return nil, err
 	}
-	artiStrategy := strategy.NewArtifactoryLiveLogStrategy(serviceManager)
+	artiStrategy := strategy.NewArtifactoryHttpStrategy(serviceManager)
 	livelogClient = livelog.NewClient(artiStrategy)
 
 	err = validateArgument("node id", nodeId,
@@ -168,7 +168,7 @@ func interactiveMenu(ctx context.Context) (livelog.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	artiStrategy := strategy.NewArtifactoryLiveLogStrategy(serviceManager)
+	artiStrategy := strategy.NewArtifactoryHttpStrategy(serviceManager)
 	livelogClient = livelog.NewClient(artiStrategy)
 
 	nodeId, err := selectNodeId(ctx)

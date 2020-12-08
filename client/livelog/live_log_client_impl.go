@@ -1,8 +1,11 @@
 package livelog
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/hanoch-jfrog/forest/client/livelog/constants"
 	"github.com/hanoch-jfrog/forest/client/livelog/model"
 	"github.com/hanoch-jfrog/forest/client/livelog/strategy"
 	"io"
@@ -16,15 +19,15 @@ const (
 )
 
 type client struct {
-	strategy        strategy.LiveLogStrategy
+	httpStrategy    strategy.Http
 	nodeId          string
 	logFileName     string
 	logsRefreshRate time.Duration
 }
 
-func NewClient(strategy strategy.LiveLogStrategy) *client {
+func NewClient(strategy strategy.Http) *client {
 	return &client{
-		strategy:        strategy,
+		httpStrategy:    strategy,
 		logsRefreshRate: defaultLogsRefreshRate,
 	}
 }
@@ -32,7 +35,15 @@ func NewClient(strategy strategy.LiveLogStrategy) *client {
 func (s *client) GetServiceNodes(ctx context.Context) (*model.ServiceNodes, error) {
 	timeoutCtx, cancelTimeout := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer cancelTimeout()
-	return s.strategy.GetServiceNodes(timeoutCtx)
+	endpoint := s.httpStrategy.NodesEndpoint()
+	resBody, err := s.httpStrategy.SendGet(timeoutCtx, endpoint, "")
+	if err != nil {
+		return nil, err
+	}
+
+	serviceNodes := model.ServiceNodes{}
+	err = json.Unmarshal(resBody, &serviceNodes)
+	return &serviceNodes, err
 }
 
 func (s *client) GetConfig(ctx context.Context) (model.Config, error) {
@@ -42,7 +53,14 @@ func (s *client) GetConfig(ctx context.Context) (model.Config, error) {
 
 	timeoutCtx, cancelTimeout := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer cancelTimeout()
-	return s.strategy.GetConfig(timeoutCtx, s.nodeId)
+	resBody, err := s.httpStrategy.SendGet(timeoutCtx, constants.ConfigEndpoint, s.nodeId)
+	if err != nil {
+		return model.Config{}, err
+	}
+
+	logConfig := model.Config{}
+	err = json.Unmarshal(resBody, &logConfig)
+	return logConfig, err
 }
 
 func (s *client) SetNodeId(nodeId string) {
@@ -65,20 +83,30 @@ func (s *client) CatLog(ctx context.Context, output io.Writer) error {
 
 func (s *client) TailLog(ctx context.Context, output io.Writer) error {
 	pageMarker := int64(0)
+
+	catLogFunc := func() error {
+		var logReader io.Reader
+		var internalErr error
+
+		logReader, pageMarker, internalErr = s.doCatLog(ctx, pageMarker)
+		if internalErr != nil {
+			return internalErr
+		}
+		_, internalErr = io.Copy(output, logReader)
+		if internalErr != nil {
+			return internalErr
+		}
+		return nil
+	}
+	if err := catLogFunc(); err != nil {
+		return err
+	}
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-time.After(s.logsRefreshRate):
-			var logReader io.Reader
-			var err error
-
-			logReader, pageMarker, err = s.doCatLog(ctx, pageMarker)
-			if err != nil {
-				return err
-			}
-			_, err = io.Copy(output, logReader)
-			if err != nil {
+			if err := catLogFunc(); err != nil {
 				return err
 			}
 		}
@@ -95,5 +123,17 @@ func (s *client) doCatLog(ctx context.Context, lastPageMarker int64) (logReader 
 
 	timeoutCtx, cancelTimeout := context.WithTimeout(ctx, defaultLogRequestTimeout)
 	defer cancelTimeout()
-	return s.strategy.GetLiveLog(timeoutCtx, s.nodeId, s.logFileName, lastPageMarker)
+	endpoint := fmt.Sprintf("%s?$file_size=%d&id=%s", constants.DataEndpoint, lastPageMarker, s.logFileName)
+	resBody, err := s.httpStrategy.SendGet(timeoutCtx, endpoint, s.nodeId)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	logData := model.Data{}
+	if err := json.Unmarshal(resBody, &logData); err != nil {
+		return nil, 0, err
+	}
+
+	logDataBuf := bytes.NewBufferString(logData.Content)
+	return logDataBuf, logData.PageMarker, nil
 }
