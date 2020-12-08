@@ -57,43 +57,32 @@ func (s *client) SetLogsRefreshRate(logsRefreshRate time.Duration) {
 	s.logsRefreshRate = logsRefreshRate
 }
 
-func (s *client) CatLog(ctx context.Context) io.Reader {
+func (s *client) CatLog(ctx context.Context, output io.Writer) error {
 	logReader, _, err := s.doCatLog(ctx, 0)
-	if err != nil {
-		return newErrReader(err)
-	}
-	return logReader
+	_, err = io.Copy(output, logReader)
+	return err
 }
 
-func (s *client) TailLog(ctx context.Context) io.Reader {
+func (s *client) TailLog(ctx context.Context, output io.Writer) error {
 	pageMarker := int64(0)
-	readerChan := make(chan io.Reader)
-	errChan := make(chan error)
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(s.logsRefreshRate):
+			var logReader io.Reader
+			var err error
 
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				errChan <- io.EOF
-				close(readerChan)
-				close(errChan)
-				return
-			case <-time.After(s.logsRefreshRate):
-				var logReader io.Reader
-				var err error
-
-				logReader, pageMarker, err = s.doCatLog(ctx, pageMarker)
-				if err != nil {
-					errChan <- err
-					close(readerChan)
-					close(errChan)
-					return
-				}
-				readerChan <- logReader
+			logReader, pageMarker, err = s.doCatLog(ctx, pageMarker)
+			if err != nil {
+				return err
+			}
+			_, err = io.Copy(output, logReader)
+			if err != nil {
+				return err
 			}
 		}
-	}()
-	return newBlockingReader(readerChan, errChan)
+	}
 }
 
 func (s *client) doCatLog(ctx context.Context, lastPageMarker int64) (logReader io.Reader, newPageMarker int64, err error) {

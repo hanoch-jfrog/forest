@@ -1,4 +1,4 @@
-package livelog
+package commands
 
 import (
 	"github.com/stretchr/testify/assert"

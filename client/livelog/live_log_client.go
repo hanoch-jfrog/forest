@@ -23,15 +23,15 @@ type Client interface {
 	// Sets the refresh rate interval between each log request.
 	SetLogsRefreshRate(logsRefreshRate time.Duration)
 
-	// Returns an io.Reader, which can be used to read a single log data snapshot from the remote service.
+	// Writes a single log data snapshot from the remote service into the passed io.Writer.
 	// The configured node id and log file name are used.
-	// Any errors are transmitted on the returned reader.
-	CatLog(ctx context.Context) io.Reader
+	// Any error during read or write is returned.
+	CatLog(ctx context.Context, output io.Writer) error
 
-	// Returns an io.Reader, which can be used to read continuous log data snapshots from the remote service,
+	// Writes continuous log data snapshots from the remote service into the passed io.Writer,
 	// on an interval set by the LogsRefreshRate, defaulting to 1 second.
 	// The configured node id and log file name are used.
-	// Any errors are transmitted on the returned reader.
-	// Cancellation of the passed context.Context will terminate the underlying goroutine.
-	TailLog(ctx context.Context) io.Reader
+	// Any errors during read or write is returned.
+	// NOTE: this call blocks until cancellation of the passed context.Context.
+	TailLog(ctx context.Context, output io.Writer) error
 }
