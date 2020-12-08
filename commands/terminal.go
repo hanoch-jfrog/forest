@@ -17,7 +17,7 @@ func selectLogNameAndFetchRefreshRate(ctx context.Context, client livelog.Client
 		return
 	}
 	logsRefreshRate = util.MillisToDuration(srvConfig.RefreshRateMillis)
-	selectedLogName, err = runInteractiveMenu("Please select log name", "Available log names", srvConfig.LogFileNames)
+	selectedLogName, err = runInteractiveMenu("Select log name", "Available log names", srvConfig.LogFileNames)
 	return
 }
 
@@ -26,7 +26,7 @@ func selectNodeId(ctx context.Context, client livelog.Client) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return runInteractiveMenu("Please select node number", "Available nodes", nodeIds)
+	return runInteractiveMenu("Select node id", "Available nodes", nodeIds)
 }
 
 func selectCliServerId() (string, error) {
@@ -34,7 +34,7 @@ func selectCliServerId() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return runInteractiveMenu("Please select JFrog CLI server id", "Available server IDs", serverIds)
+	return runInteractiveMenu("Select JFrog CLI server id", "Available server IDs", serverIds)
 }
 
 func runInteractiveMenu(selectionHeader string, selectionLabel string, values []string) (string, error) {
