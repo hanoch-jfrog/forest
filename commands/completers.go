@@ -3,29 +3,25 @@ package commands
 import (
 	"context"
 	"fmt"
-	"github.com/hanoch-jfrog/forest/client/livelog"
+	"github.com/hanoch-jfrog/forest/client/livelog/model"
 	"github.com/jfrog/jfrog-cli-core/utils/config"
 	"github.com/manifoldco/promptui"
 	"time"
 )
 
-const requestTimeout = 15 * time.Second
-
 func selectLogNameAndFetchRefreshRate(ctx context.Context) (selectedLogName string, logsRefreshRate time.Duration, err error) {
-	var srvConfig livelog.Config
+	var srvConfig model.Config
 	srvConfig, err = fetchServerConfig(ctx)
 	if err != nil {
 		return
 	}
-	logsRefreshRate = livelog.MillisToDuration(srvConfig.RefreshRateMillis)
+	logsRefreshRate = MillisToDuration(srvConfig.RefreshRateMillis)
 	selectedLogName, err = runInteractiveMenu("Please select log name", "Available log names", srvConfig.LogFileNames)
 	return
 }
 
-func fetchServerConfig(ctx context.Context) (srvConfig livelog.Config, err error) {
-	timeoutCtx, cancel := context.WithTimeout(ctx, requestTimeout)
-	defer cancel()
-	srvConfig, err = artifactoryServiceClient.GetConfig(timeoutCtx)
+func fetchServerConfig(ctx context.Context) (srvConfig model.Config, err error) {
+	srvConfig, err = livelogClient.GetConfig(ctx)
 	if err != nil {
 		return
 	}
@@ -45,9 +41,7 @@ func selectNodeId(ctx context.Context) (string, error) {
 }
 
 func fetchAllNodeIds(ctx context.Context) ([]string, error) {
-	timeoutCtx, cancel := context.WithTimeout(ctx, requestTimeout)
-	defer cancel()
-	serviceNodes, err := artifactoryServiceClient.GetServiceNodes(timeoutCtx)
+	serviceNodes, err := livelogClient.GetServiceNodes(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +60,6 @@ func selectCliServerId() (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	return runInteractiveMenu("Please select JFrog CLI server id", "Available server IDs", serverIds)
 }
 
@@ -91,7 +84,6 @@ func runInteractiveMenu(selectionHeader string, selectionLabel string, values []
 	if selectionHeader != "" {
 		fmt.Println(selectionHeader)
 	}
-
 	selectMenu := promptui.Select{
 		Label: selectionLabel,
 		Items: values,
