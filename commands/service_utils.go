@@ -32,3 +32,18 @@ func getRtDetails(serverId string) (*configutil.ArtifactoryDetails, error) {
 	}
 	return details, nil
 }
+
+func fetchAllServerIds() ([]string, error) {
+	configs, err := configutil.GetAllArtifactoryConfigs()
+	if err != nil {
+		return nil, err
+	}
+	if len(configs) == 0 {
+		return nil, fmt.Errorf("no CLI server IDs found")
+	}
+	serverIds := make([]string, len(configs))
+	for idx, conf := range configs {
+		serverIds[idx] = conf.ServerId
+	}
+	return serverIds, nil
+}

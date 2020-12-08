@@ -13,8 +13,8 @@ func main() {
 func getApp() components.App {
 	app := components.App{}
 	app.Name = "forest"
-	app.Description = "Fetch the lost log from the forest."
-	app.Version = "v0.1.0"
+	app.Description = "Print logs from a remote Artifactory node."
+	app.Version = "v1.0.0"
 	app.Commands = getCommands()
 	return app
 }

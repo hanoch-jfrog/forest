@@ -2,14 +2,14 @@
 
 ## About this plugin
 The plugin allows you to get all Artifactory logs with a single click.<br>
-You have the ability to `cat` and `tail -f` any Artifactory log.<br>
+You have the ability to `cat` and `tail -f` any log on an Artifactory node.<br>
 
 ## Installation with JFrog CLI
 Since this plugin is currently not included in [JFrog CLI Plugins Registry](https://github.com/jfrog/jfrog-cli-plugins-reg), it needs to be built and installed manually. Follow these steps to install and use this plugin with JFrog CLI.
 1. Make sure JFrog CLI is installed on you machine by running ```jfrog```. If it is not installed, [install](https://jfrog.com/getcli/) it.
 2. Create a directory named ```plugins``` under ```~/.jfrog/``` if it does not exist already.
 3. Clone this repository.
-4. CD into the root directory of the cloned project.
+4. `cd` into the root directory of the cloned project.
 5. Run ```make build``` to create the binary in the current directory.
 6. Copy the binary into the ```~/.jfrog/plugins``` directory.
 
@@ -51,7 +51,7 @@ Since this plugin is currently not included in [JFrog CLI Plugins Registry](http
 <br>For example:
 ```
 $ jfrog forest logs local-artii 2368364e2c78 console.log
-[Error] server id not found [local-artii], consider using one of the following server id [remote-arti,local-arti]
+[Error] server id not found [local-artii], consider using one of the following server id values [remote-arti,local-arti]
 ```
 ## Release Notes
 The release notes are available [here](RELEASE.md).

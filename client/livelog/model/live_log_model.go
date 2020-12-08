@@ -15,5 +15,5 @@ type ServiceNodes struct {
 }
 
 type ServiceNode struct {
-	NodeID string `json:"node_id"`
+	NodeId string `json:"node_id"`
 }

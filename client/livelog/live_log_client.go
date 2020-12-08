@@ -9,7 +9,7 @@ import (
 
 type Client interface {
 	// Queries and returns the available nodes from the remote service.
-	GetServiceNodes(ctx context.Context) (*model.ServiceNodes, error)
+	GetServiceNodeIds(ctx context.Context) ([]string, error)
 
 	// Sets the node id to use when querying the remote service for log data.
 	SetNodeId(nodeId string)

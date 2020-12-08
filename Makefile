@@ -11,7 +11,7 @@ help:				## Show this help.
 
 # BUILD:
 
-build:	clean			## Build Forest plugin
+build: clean			## Build Forest plugin
 	$(GOCMD) build
 
 fmt-fix:			## Gofmt fix errors
@@ -21,28 +21,30 @@ vet:				## GoVet
 	$(GOCMD) vet $(TEST_TAGS) ./...
 
 clean:				## Clean from created bins
-	rm -f forest main jfrog-cli-plugin-template main
+	rm -f forest
 
-run:			## Run the plugin
+run:				## Run the plugin
 	$(GOCMD) run main.go
 
 
 # TEST EXECUTION
 
 test:				## Run all tests
-	export GOMAXPROCS=4
 	time $(GOCMD) test ./... $(TEST_TAGS) -count=1
 
-test-list: 			## List all tests
+test-list:			## List all tests
 	$(GOCMD) list ./...
+
+cover:				## Shows coverage details
+	$(GOCMD) test ./... $(TEST_TAGS) -count=1 -coverprofile=coverage
 
 
 # PLUGIN INSTALLATION
 
 install:			## Install the plugin to jfrog cli
-	jfrog plugin install hello-frog
+	jfrog plugin install forest
 
 uninstall:			## Uninstall the plugin to jfrog cli
-	jfrog plugin uninstall hello-frog
+	jfrog plugin uninstall forest
 
-.PHONY: help build run clean vet test test-list fmt-fix install uninstall
+.PHONY: help build fmt-fix vet clean run test test-list cover install uninstall

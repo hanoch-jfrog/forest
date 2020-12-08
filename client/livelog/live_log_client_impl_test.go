@@ -34,12 +34,12 @@ func Test_client_SetLogsRefreshRate(t *testing.T) {
 	require.Equal(t, time.Minute, s.logsRefreshRate)
 }
 
-func Test_client_GetServiceNodes(t *testing.T) {
+func Test_client_GetServiceNodeIds(t *testing.T) {
 	tests := []struct {
 		name            string
 		mockGetResponse []byte
 		mockGetErr      error
-		want            *model.ServiceNodes
+		want            []string
 		wantErr         bool
 	}{
 		{
@@ -48,14 +48,14 @@ func Test_client_GetServiceNodes(t *testing.T) {
 			wantErr:    true,
 		},
 		{
+			name:            "no node ids response",
+			mockGetResponse: []byte("{\"nodes\": []}"),
+			wantErr:         true,
+		},
+		{
 			name:            "nodes response",
 			mockGetResponse: []byte("{\"nodes\": [{\"node_id\": \"node-1\"}, {\"node_id\": \"node-2\"}]}"),
-			want: &model.ServiceNodes{
-				Nodes: []model.ServiceNode{
-					{NodeID: "node-1"},
-					{NodeID: "node-2"},
-				},
-			},
+			want:            []string{"node-1", "node-2"},
 		},
 	}
 	for _, tt := range tests {
@@ -68,7 +68,7 @@ func Test_client_GetServiceNodes(t *testing.T) {
 					getErr:         tt.mockGetErr,
 				},
 			}
-			got, err := s.GetServiceNodes(context.Background())
+			got, err := s.GetServiceNodeIds(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetServiceNodes() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -98,6 +98,12 @@ func Test_client_GetConfig(t *testing.T) {
 			nodeId:     "node-1",
 			mockGetErr: fmt.Errorf("some-error"),
 			wantErr:    true,
+		},
+		{
+			name:            "no log files found response",
+			nodeId:          "node-1",
+			mockGetResponse: []byte("{\"logs\": [], \"refresh_rate_millis\": 123}"),
+			wantErr:         true,
 		},
 		{
 			name:            "config response",
